@@ -5,3 +5,4 @@ pygithub
 httpx 
 python-dotenv 
 pyngrok
+groq

@@ -56,8 +56,9 @@ GitHub Webhook  ──────────────────>  FastAPI
 ```
 CodeWatchdog/
 ├── app/
+├── ├──init__.py
 │   ├── main.py            # FastAPI server and webhook handler
-│   ├── groq_review.py     # Groq API and code review logic
+│   ├── agent_review.py     # Groq API and code review logic
 │   └── github_utils.py    # GitHub API - fetch diff and post comments
 ├── .env                   # API keys (never commit this)
 ├── .gitignore

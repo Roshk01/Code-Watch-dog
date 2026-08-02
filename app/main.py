@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Header
 from dotenv import load_dotenv
-from groq_review import PR_Agent
+from agent_review import review_code, classify_complexity
 from github_utils import post_review
 import os
 import requests
@@ -13,6 +13,7 @@ app = FastAPI()
 # handle only PR open Events
 @app.post("/webhook")
 async def github_webhook(request: Request):
+    
     data = await request.json()
 
     # only handle PR open events
@@ -30,8 +31,10 @@ async def github_webhook(request: Request):
     diff_response = requests.get(pr_diff_url, headers=headers)
     diff_content = diff_response.text
 
-    # step 2 call the LLM for review
-    review = PR_Agent(diff_content)
+    # step 2 classify complexity and call the code review agent
+    complexity = classify_complexity(diff_content)
+    print(f'Complexity of PR #{pr_no}: {complexity}')
+    review = review_code(diff_content, complexity=complexity)
     print(f'Review for PR #{pr_no}:\n{review}')
 
     # step 3 post the review back to Github
