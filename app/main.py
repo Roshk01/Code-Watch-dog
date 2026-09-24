@@ -1,18 +1,50 @@
-from fastapi import FastAPI, Request, Header
+from fastapi import FastAPI, Request, Header, HTTPException
 from dotenv import load_dotenv
-from agent_review import review_code, classify_complexity
-from github_utils import post_review
+from app.agent_review import review_code, classify_complexity
+from app.github_utils import post_review
 import os
 import requests
+import hmac
+import hashlib
 
 load_dotenv()
 github_token = os.getenv("GitHub_token")
+github_webhook_secret = os.getenv("WEBHOOK_SECRET")
+
+if not github_webhook_secret:
+    raise ValueError("WEBHOOK_SECRET not found in .env file!")
 
 app = FastAPI()
 
+
+# webhook signature verification function
+def verify_signature(payload_body: bytes, signature_header:str | None)-> bool:
+
+    if not signature_header or not signature_header.startswith("sha256="):
+        return False
+
+    expected_signature = hmac.new(
+        key=github_webhook_secret.encode("utf-8"),
+        msg=payload_body,
+        digestmod=hashlib.sha256
+    ).hexdigest()
+
+    received_signature = signature_header.removeprefix("sha256=")
+    return hmac.compare_digest(expected_signature, received_signature)
+
 # handle only PR open Events
 @app.post("/webhook")
-async def github_webhook(request: Request):
+async def github_webhook(
+    request: Request,
+    x_hub_signature_256: str | None = Header(None),
+    x_github_event: str | None = Header(None)
+):
+    raw_body = await request.body()
+    if not verify_signature(raw_body, x_hub_signature_256):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    if x_github_event != "pull_request":
+        return {'status': 'Ignored'}
     
     data = await request.json()
 
