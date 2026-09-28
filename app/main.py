@@ -17,17 +17,6 @@ if not github_webhook_secret:
 app = FastAPI()
 
 
-@app.get("/")
-def health():
-    return {"status": "codewatchdog is running"}
-
-
-@app.get("/test-review")
-def test_review():
-    sample_diff = "+++ b/app.py\n+def add(a, b):\n+    return a + b();;\n+password = 'admin123'\n"
-    complexity = classify_complexity(sample_diff)
-    return {"complexity": complexity, "review": review_code(sample_diff, complexity=complexity)}
-
 # webhook signature verification function
 def verify_signature(payload_body: bytes, signature_header:str | None)-> bool:
 
