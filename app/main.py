@@ -3,8 +3,10 @@ from dotenv import load_dotenv
 from app.agent_review import review_code, classify_complexity
 from app.github_utils import post_review
 import os
+import json
 import requests
 import hmac
+import time
 import hashlib
 
 load_dotenv()
@@ -60,7 +62,22 @@ async def github_webhook(
 
     # step 1 fetch the diff
     headers = {'authorization': f'token {github_token}'}
-    diff_response = requests.get(pr_diff_url, headers=headers)
+    max_attempts = 3
+    diff_response = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            diff_response = requests.get(pr_diff_url, headers=headers, timeout=10)
+            diff_response.raise_for_status()
+            break  # success — exit the loop
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt}/{max_attempts} failed: {e}")
+            if attempt == max_attempts:
+                raise HTTPException(status_code=502, detail=f"Failed to fetch diff after {max_attempts} attempts: {e}") from e
+            time.sleep(2)  # or 2 ** attempt for increasing delay each retry
+
+    if diff_response is None:
+        raise HTTPException(status_code=502, detail="Failed to fetch diff")
+
     diff_content = diff_response.text
 
     # step 2 classify complexity and call the code review agent
@@ -71,6 +88,3 @@ async def github_webhook(
 
     # step 3 post the review back to Github
     post_review(repo_name, pr_no, review)
-
-
-    return {'status': 'PR Reviewed & comment posted', 'pr_no': pr_no, 'repo_name': repo_name}

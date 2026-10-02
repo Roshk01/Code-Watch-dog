@@ -3,45 +3,43 @@ from github import Github
 from dotenv import load_dotenv
 import re
 import json
+from typing import Any
 
 load_dotenv()  # Load environment variables from .env file
 github_token = os.getenv("GitHub_token")
 if not github_token:
     raise ValueError("GITHUB_TOKEN not found in .env file!")
 
-def post_review(repo_name: str, pr_number: int, review: str):
+def post_review(repo_name: str, pr_number: int, review: dict):
     try:
         # connect to GitHub using the token
         g = Github(github_token)
         repo = g.get_repo(repo_name)
         pr = repo.get_pull(pr_number)
 
-        # Extract JSON object from the response
-        json_match = re.search(r'\{.*\}', review, re.DOTALL)
-        if not json_match:
-            print("No JSON found in review response!")
+        if review.get("too_large"):
+            comment_body = f"## code watch Dog Review 🐕\n\n{review['summary']}"
+            pr.create_issue_comment(comment_body)
+            print(f"Posted 'too large' notice on PR #{pr_number} in repo {repo_name}")
             return
-        
-        clean_review = json_match.group()
 
-        # parse the json review content
-        review = json.loads(clean_review)
+        review_data = review
 
         # create a clean comment body for the review
-        score = review['code_quality']['score']
-        feedback = review['code_quality']['overall_feedback']
-        summary = review['summary']
-        suggestion = review['suggestions']
-        security = review['security_issues']
+        score = review_data['code_quality']['score']
+        feedback = review_data['code_quality']['overall_feedback']
+        summary = review_data['summary']
+        suggestion = review_data['suggestions']
+        security = review_data['security_issues']
 
 
         comment_body = f""" 
-## code watch Dog Review 🐕
-## Code Quality Score: {score}/10
-{feedback}
-        
-## security issues:
-"""
+        ## code watch Dog Review 🐕
+        ## Code Quality Score: {score}/10
+        {feedback}
+                
+        ## security issues:
+        """
         if security:
             for issue in security:
                 comment_body += f'** Line {issue["line"]}** {issue["description"]} \n'
