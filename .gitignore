@@ -5,3 +5,4 @@ __pycache__/
 CodeWatchdog_Project_Review_Report
 .vscode
 graphify-out
+.pytest_cache/
